@@ -1,0 +1,554 @@
+<title>Power of Two</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:        #eef0f4;
+    --ink-dim:    #9aa1b4;
+    --ground:     #12141c;
+    --panel:      #1a1d28;
+    --panel-edge: #262a3a;
+    --cell:       #1f2330;
+    --cell-edge:  #2b3042;
+    --accent:     #ffb454;
+    --accent-ink: #1a1206;
+    --good:       #7fd8a4;
+    --bad:        #ff6b6b;
+    --font-display: 'Unbounded', 'Arial Black', sans-serif;
+    --font-body:    'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono:    'IBM Plex Mono', 'Consolas', monospace;
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--font-body);
+    display:flex;
+    justify-content:center;
+    padding:32px 16px 48px;
+    min-height:100vh;
+  }
+
+  .console{
+    width:100%;
+    max-width:460px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  /* ---------- header ---------- */
+  .masthead{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+  }
+  .wordmark{
+    font-family:var(--font-display);
+    font-weight:900;
+    font-size:clamp(28px,7vw,38px);
+    line-height:0.95;
+    letter-spacing:-0.01em;
+    text-wrap:balance;
+    margin:0;
+  }
+  .wordmark span{ color:var(--accent); }
+  .tagline{
+    margin:6px 0 0;
+    font-size:13px;
+    color:var(--ink-dim);
+    letter-spacing:0.02em;
+  }
+
+  .scores{
+    display:flex;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .score-box{
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:10px;
+    padding:6px 14px;
+    text-align:center;
+    min-width:72px;
+  }
+  .score-box .label{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--ink-dim);
+  }
+  .score-box .value{
+    font-family:var(--font-mono);
+    font-variant-numeric:tabular-nums;
+    font-weight:600;
+    font-size:20px;
+    color:var(--ink);
+  }
+  .score-box.best .value{ color:var(--accent); }
+
+  /* ---------- control strip ---------- */
+  .controls{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .hint{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+  .hint kbd{
+    font-family:inherit;
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-bottom-width:2px;
+    border-radius:4px;
+    padding:1px 6px;
+    color:var(--ink);
+  }
+  button.new-game{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:13px;
+    color:var(--accent-ink);
+    background:var(--accent);
+    border:none;
+    border-radius:8px;
+    padding:9px 16px;
+    cursor:pointer;
+    transition:transform 0.08s ease, filter 0.15s ease;
+  }
+  button.new-game:hover{ filter:brightness(1.08); }
+  button.new-game:active{ transform:scale(0.96); }
+  button.new-game:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+  /* ---------- board ---------- */
+  .board-frame{
+    background:var(--panel);
+    border:1px solid var(--panel-edge);
+    border-radius:16px;
+    padding:14px;
+    box-shadow:0 20px 50px -25px rgba(0,0,0,0.7);
+  }
+  .board{
+    position:relative;
+    width:100%;
+    aspect-ratio:1;
+    border-radius:10px;
+    overflow:hidden;
+    touch-action:none;
+  }
+  .cell-bg{
+    position:absolute;
+    background:var(--cell);
+    border:1px solid var(--cell-edge);
+    border-radius:8px;
+  }
+  .tile{
+    position:absolute;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    font-family:var(--font-mono);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    transition:left 0.12s ease, top 0.12s ease;
+    user-select:none;
+  }
+  .tile.spawn{ animation:pop 0.18s ease-out; }
+  .tile.merged{ animation:pulse 0.16s ease-out 0.08s; }
+  .tile.super{ box-shadow:0 0 0 1px rgba(255,255,255,0.25) inset, 0 0 22px -4px currentColor; }
+
+  @keyframes pop{
+    from{ transform:scale(0.35); opacity:0; }
+    to{ transform:scale(1); opacity:1; }
+  }
+  @keyframes pulse{
+    0%{ transform:scale(1); }
+    50%{ transform:scale(1.14); }
+    100%{ transform:scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .tile{ transition:none; }
+    .tile.spawn, .tile.merged{ animation:none; }
+  }
+
+  /* ---------- overlay ---------- */
+  .overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    background:rgba(18,20,28,0.88);
+    backdrop-filter:blur(2px);
+    border-radius:10px;
+    text-align:center;
+    padding:24px;
+  }
+  .overlay[hidden]{ display:none; }
+  .overlay h2{
+    font-family:var(--font-display);
+    font-size:26px;
+    margin:0;
+  }
+  .overlay p{
+    margin:0;
+    color:var(--ink-dim);
+    font-size:14px;
+    max-width:26ch;
+  }
+  .overlay .row{ display:flex; gap:10px; }
+  .overlay button{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:13px;
+    border-radius:8px;
+    padding:9px 16px;
+    cursor:pointer;
+    border:1px solid var(--panel-edge);
+  }
+  .overlay button.primary{
+    background:var(--accent);
+    color:var(--accent-ink);
+    border-color:transparent;
+  }
+  .overlay button.ghost{
+    background:transparent;
+    color:var(--ink);
+  }
+  .overlay button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+  /* ---------- footer ---------- */
+  .footnote{
+    font-size:12px;
+    color:var(--ink-dim);
+    line-height:1.6;
+    text-align:center;
+  }
+  .footnote strong{ color:var(--ink); }
+</style>
+
+<div class="console">
+  <header class="masthead">
+    <div>
+      <h1 class="wordmark">Power<br>of <span>Two</span></h1>
+      <p class="tagline">Merge matching tiles until they double.</p>
+    </div>
+    <div class="scores">
+      <div class="score-box">
+        <div class="label">Score</div>
+        <div class="value" id="score">0</div>
+      </div>
+      <div class="score-box best">
+        <div class="label">Best</div>
+        <div class="value" id="best">0</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <span class="hint"><kbd>&larr;&uarr;&darr;&rarr;</kbd> or swipe</span>
+    <button class="new-game" id="newGame">New game</button>
+  </div>
+
+  <div class="board-frame">
+    <div class="board" id="board" role="img" aria-label="2048 puzzle board">
+      <div class="overlay" id="overlay" hidden>
+        <h2 id="overlayTitle">Game over</h2>
+        <p id="overlayText">No more moves left on the board.</p>
+        <div class="row">
+          <button class="ghost" id="overlayDismiss" hidden>Keep going</button>
+          <button class="primary" id="overlayRestart">Try again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">Every tile is a power of two &mdash; two matching tiles always fold into the next one up. Reach <strong>2048</strong> to win, or keep folding past it.</p>
+</div>
+
+<script>
+(function(){
+  const N = 4;
+  const PAD = 3.2, GAP = 2.6;
+  const CELL = (100 - 2*PAD - (N-1)*GAP) / N;
+
+  const boardEl = document.getElementById('board');
+  const overlayEl = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayText = document.getElementById('overlayText');
+  const overlayDismiss = document.getElementById('overlayDismiss');
+  const overlayRestart = document.getElementById('overlayRestart');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const newGameBtn = document.getElementById('newGame');
+
+  let grid, tiles, nextId, score, best, won, keepGoingPastWin, over;
+
+  function pos(i){ return PAD + i * (CELL + GAP); }
+
+  function loadBest(){
+    try { return parseInt(localStorage.getItem('power-of-two-best') || '0', 10) || 0; }
+    catch(e){ return 0; }
+  }
+  function saveBest(v){
+    try { localStorage.setItem('power-of-two-best', String(v)); } catch(e){}
+  }
+
+  // ---- color ramp: log2(value) walks a teal -> amber -> magenta gradient ----
+  const STOPS = [
+    [28,93,99],   [31,122,108], [47,157,111], [108,176,74],
+    [168,178,58], [217,164,65], [233,138,58], [241,111,77],
+    [255,90,95],  [255,68,112], [255,180,84]
+  ];
+  const BEYOND = [194,59,219];
+
+  function tileColor(value){
+    const idx = Math.log2(value) - 1; // value=2 -> idx 0
+    if (idx < STOPS.length) {
+      const lo = STOPS[Math.max(0, Math.floor(idx) - 0)];
+      return STOPS[Math.min(STOPS.length - 1, Math.round(idx))];
+    }
+    const t = Math.min(1, (idx - STOPS.length) / 6);
+    const base = STOPS[STOPS.length - 1];
+    return base.map((c,i) => Math.round(c + (BEYOND[i] - c) * t));
+  }
+  function textColorFor(rgb){
+    const lum = (0.299*rgb[0] + 0.587*rgb[1] + 0.114*rgb[2]) / 255;
+    return lum > 0.62 ? '#1a1206' : '#f4f1ea';
+  }
+
+  function emptyGrid(){
+    const g = [];
+    for (let r=0; r<N; r++) g.push(new Array(N).fill(null));
+    return g;
+  }
+
+  function newTile(row, col, value, spawning){
+    const t = { id: nextId++, row, col, value, spawning: !!spawning, merged:false };
+    grid[row][col] = t;
+    tiles.push(t);
+    return t;
+  }
+
+  function randomEmptyCell(){
+    const empties = [];
+    for (let r=0; r<N; r++) for (let c=0; c<N; c++) if (!grid[r][c]) empties.push([r,c]);
+    if (!empties.length) return null;
+    return empties[Math.floor(Math.random() * empties.length)];
+  }
+
+  function addRandomTile(){
+    const cell = randomEmptyCell();
+    if (!cell) return;
+    newTile(cell[0], cell[1], Math.random() < 0.9 ? 2 : 4, true);
+  }
+
+  function startGame(){
+    grid = emptyGrid();
+    tiles = [];
+    nextId = 1;
+    score = 0;
+    won = false;
+    keepGoingPastWin = false;
+    over = false;
+    overlayEl.hidden = true;
+    addRandomTile();
+    addRandomTile();
+    render(true);
+  }
+
+  function cloneGridShape(){
+    // returns grid of tiles-or-null, used to detect movement
+    return grid.map(row => row.map(t => t ? t.value : null));
+  }
+
+  function move(dir){
+    if (over) return;
+    // dir: 'up','down','left','right'
+    tiles.forEach(t => { t.merged = false; t.spawning = false; t.mergedInto = false; });
+    const before = cloneGridShape();
+    let moved = false;
+
+    const order = [0,1,2,3];
+    const reversed = [3,2,1,0];
+
+    function lineCoords(lineIndex, i, axis){
+      // axis 'row' means we iterate columns for a fixed row; 'col' means fixed column
+      return axis === 'row' ? [lineIndex, i] : [i, lineIndex];
+    }
+
+    let axis, primaryOrder, secondaryOrder;
+    if (dir === 'left')  { axis = 'row'; primaryOrder = order; }
+    if (dir === 'right') { axis = 'row'; primaryOrder = reversed; }
+    if (dir === 'up')    { axis = 'col'; primaryOrder = order; }
+    if (dir === 'down')  { axis = 'col'; primaryOrder = reversed; }
+
+    for (let lineIndex = 0; lineIndex < N; lineIndex++) {
+      const seq = [];
+      for (const i of order) {
+        const [r,c] = lineCoords(lineIndex, i, axis);
+        const t = grid[r][c];
+        if (t) seq.push(t);
+      }
+      const ordered = (dir === 'right' || dir === 'down') ? seq.slice().reverse() : seq;
+
+      const result = [];
+      let i = 0;
+      while (i < ordered.length) {
+        const cur = ordered[i];
+        const nxt = ordered[i+1];
+        if (nxt && nxt.value === cur.value) {
+          result.push({ value: cur.value * 2, from: [cur, nxt] });
+          i += 2;
+        } else {
+          result.push({ value: cur.value, from: [cur] });
+          i += 1;
+        }
+      }
+      const finalOrder = (dir === 'right' || dir === 'down') ? result.slice().reverse() : result;
+
+      for (let slot = 0; slot < finalOrder.length; slot++) {
+        const idx = (dir === 'right' || dir === 'down') ? (N - finalOrder.length + slot) : slot;
+        const [r,c] = lineCoords(lineIndex, idx, axis);
+        const entry = finalOrder[slot];
+        if (entry.from.length === 2) {
+          const survivor = entry.from[0];
+          const consumed = entry.from[1];
+          survivor.row = r; survivor.col = c;
+          survivor.value = entry.value;
+          survivor.merged = true;
+          consumed.mergedInto = true;
+          score += entry.value;
+          if (entry.value === 2048 && !won) won = true;
+        } else {
+          entry.from[0].row = r;
+          entry.from[0].col = c;
+        }
+      }
+      // clear the line in grid, we'll rebuild below
+    }
+
+    tiles = tiles.filter(t => !t.mergedInto);
+    grid = emptyGrid();
+    tiles.forEach(t => { grid[t.row][t.col] = t; });
+
+    const after = cloneGridShape();
+    moved = JSON.stringify(before) !== JSON.stringify(after);
+
+    if (moved) {
+      addRandomTile();
+      if (score > best) { best = score; saveBest(best); }
+      render(false);
+      if (won && !keepGoingPastWin) {
+        showOverlay('You reached 2048!', 'Keep folding for a higher score, or start fresh.', true);
+      } else if (!hasMoves()) {
+        over = true;
+        showOverlay('Game over', 'No more moves left on the board.', false);
+      }
+    }
+  }
+
+  function hasMoves(){
+    for (let r=0; r<N; r++) for (let c=0; c<N; c++) {
+      if (!grid[r][c]) return true;
+      const v = grid[r][c].value;
+      if (c < N-1 && grid[r][c+1] && grid[r][c+1].value === v) return true;
+      if (r < N-1 && grid[r+1][c] && grid[r+1][c].value === v) return true;
+    }
+    return false;
+  }
+
+  function showOverlay(title, text, isWin){
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    overlayDismiss.hidden = !isWin;
+    overlayEl.hidden = false;
+  }
+
+  function render(rebuildBg){
+    scoreEl.textContent = score;
+    bestEl.textContent = best;
+
+    if (rebuildBg) {
+      boardEl.querySelectorAll('.cell-bg, .tile').forEach(el => el.remove());
+      for (let r=0; r<N; r++) for (let c=0; c<N; c++) {
+        const bg = document.createElement('div');
+        bg.className = 'cell-bg';
+        bg.style.left = pos(c) + '%';
+        bg.style.top = pos(r) + '%';
+        bg.style.width = CELL + '%';
+        bg.style.height = CELL + '%';
+        boardEl.appendChild(bg);
+      }
+    }
+
+    boardEl.querySelectorAll('.tile').forEach(el => el.remove());
+    tiles.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'tile' + (t.spawning ? ' spawn' : '') + (t.merged ? ' merged' : '') + (t.value >= 128 ? ' super' : '');
+      el.style.left = pos(t.col) + '%';
+      el.style.top = pos(t.row) + '%';
+      el.style.width = CELL + '%';
+      el.style.height = CELL + '%';
+      const rgb = tileColor(t.value);
+      const rgbStr = 'rgb(' + rgb.join(',') + ')';
+      el.style.background = rgbStr;
+      el.style.color = textColorFor(rgb);
+      el.style.setProperty('color', rgbStr);
+      el.style.fontSize = (t.value < 100 ? 30 : t.value < 1000 ? 24 : 19) + 'px';
+      el.innerHTML = '<span style="color:' + textColorFor(rgb) + '">' + t.value + '</span>';
+      boardEl.appendChild(el);
+    });
+  }
+
+  // ---- input ----
+  const KEY_DIR = {
+    ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down',
+    a:'left', d:'right', w:'up', s:'down',
+    A:'left', D:'right', W:'up', S:'down'
+  };
+  window.addEventListener('keydown', (e) => {
+    const dir = KEY_DIR[e.key];
+    if (!dir) return;
+    e.preventDefault();
+    move(dir);
+  });
+
+  let touchStart = null;
+  boardEl.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    touchStart = { x: t.clientX, y: t.clientY };
+  }, { passive:true });
+  boardEl.addEventListener('touchend', (e) => {
+    if (!touchStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'right' : 'left');
+    else move(dy > 0 ? 'down' : 'up');
+  }, { passive:true });
+
+  newGameBtn.addEventListener('click', startGame);
+  overlayRestart.addEventListener('click', startGame);
+  overlayDismiss.addEventListener('click', () => {
+    keepGoingPastWin = true;
+    overlayEl.hidden = true;
+  });
+
+  best = loadBest();
+  startGame();
+})();
+</script>
