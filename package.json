@@ -1,0 +1,24 @@
+{
+  "name": "power-of-two-2048",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A single-file 2048 clone: merge matching tiles until they double, and try to reach 2048 (or keep folding past it for a higher score).",
+  "scripts": {
+    "test": "node --test test/feedback.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/burbano444/power-of-two-2048.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/burbano444/power-of-two-2048/issues"
+  },
+  "homepage": "https://github.com/burbano444/power-of-two-2048#readme",
+  "devDependencies": {
+    "jsdom": "^30.0.1"
+  }
+}
